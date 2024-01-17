@@ -11,7 +11,6 @@
 #   https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/server/capture/mssql.rb
 #
 # do zrobienia:
-# - fragmentacja po TLS
 # - wlasna fabryka do wspoldzielenia danych - https://stackoverflow.com/questions/14848793/passing-parameters-to-twisted-factory-to-be-passed-to-session
 
 TDS_RESPONSE          = 4
@@ -19,6 +18,8 @@ TDS_HEADER_SIZE       = 8
 TDS_PRELOGIN_OPTION_SIZE = 5
 TDS_PRELOGIN_OPTION_ENCRYPTION_TOKEN = 0x01
 TDS_PRELOGIN_OPTION_TERMINATOR_TOKEN = 0xff
+
+TLS_PACKET_SIZE = 16*1024-1
 
 RED = "\33[91m"
 BLUE = "\33[94m"
@@ -163,7 +164,7 @@ class MSSQLServerProtocol(protocol.Protocol):
                     self.tls.do_handshake()
                 except SSL.WantReadError:
                     pass
-                data2 = self.tls.bio_read(4096)
+                data2 = self.tls.bio_read(TLS_PACKET_SIZE)
                 handshake_resp = tds.TDSPacket()
                 handshake_resp['Type'] = tds.TDS_PRE_LOGIN
                 handshake_resp['Data'] = data2
@@ -171,7 +172,12 @@ class MSSQLServerProtocol(protocol.Protocol):
                 return
             else:
                 self.tls.bio_write(data)
-                data=self.tls.read(4096)
+                data=b''
+                while True:
+                    try:
+                        data=data+self.tls.read(TLS_PACKET_SIZE)
+                    except SSL.WantReadError:
+                        break  
 
         packet = tds.TDSPacket(data)
         # LOG.debug("TDS packet: %s",vars(packet))
@@ -199,24 +205,38 @@ class MSSQLServerProtocol(protocol.Protocol):
     # Proxy => Client
     def write(self, data):
         if self.tls_enabled:
-            self.tls.sendall(data)
-            data = self.tls.bio_read(4096)
+            packet = tds.TDSPacket(data)
+            while True:
+                try:
+                    self.tls.sendall(data[:packet.fields['Length']])
+                    LOG.debug("rewriting to client side: %s",data[:packet.fields['Length']])
+                except SSL.WantReadError:
+                    pass
+                try:
+                    self.transport.write(self.tls.bio_read(TLS_PACKET_SIZE))
+                except SSL.WantReadError:
+                    pass
+                if len(data) == packet.fields['Length']:
+                    break
+                data=data[packet.fields['Length']:]
+                packet = tds.TDSPacket(data)
+                return
+        else:
+            packet = tds.TDSPacket(data)
+            if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
+                preloginResponse = TDSPreLogin(data)
+    
+                if self.client_encryption_req == tds.TDS_ENCRYPT_ON or self.client_encryption_req == tds.TDS_ENCRYPT_REQ: 
+                    preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_ON)
+                    data = preloginResponse.data
+                    LOG.info("client side: enabling TLS ")
+                    self.tls_enabled = True
 
-        packet = tds.TDSPacket(data)
-        if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
-            preloginResponse = TDSPreLogin(data)
- 
-            if self.client_encryption_req == tds.TDS_ENCRYPT_ON or self.client_encryption_req == tds.TDS_ENCRYPT_REQ: 
-                preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_ON)
-                data = preloginResponse.data
-                LOG.info("client side: enabling TLS ")
-                self.tls_enabled = True
+                if self.client_encryption_req == tds.TDS_ENCRYPT_OFF or self.client_encryption_req == tds.TDS_ENCRYPT_NOT_SUP: 
+                    preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_NOT_SUP)
+                    data = preloginResponse.data             
 
-            if self.client_encryption_req == tds.TDS_ENCRYPT_OFF or self.client_encryption_req == tds.TDS_ENCRYPT_NOT_SUP: 
-                preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_NOT_SUP)
-                data = preloginResponse.data             
-
-        self.transport.write(data)
+            self.transport.write(data)
 
 
 class MSSQLClientProtocol(protocol.Protocol):
@@ -244,7 +264,7 @@ class MSSQLClientProtocol(protocol.Protocol):
                    self.tls.do_handshake()
                 except SSL.WantReadError:
                     LOG.debug("server side: TLS continue sending handshake")
-                    data2 = self.tls.bio_read(4096)
+                    data2 = self.tls.bio_read(TLS_PACKET_SIZE)
                     handshake_req = tds.TDSPacket()
                     handshake_req['Type'] = tds.TDS_PRE_LOGIN
                     handshake_req['Data'] = data2
@@ -258,7 +278,12 @@ class MSSQLClientProtocol(protocol.Protocol):
                 return
             else:
                 self.tls.bio_write(data)
-                data=self.tls.read(4096)
+                data=b''
+                while True:
+                    try:
+                        data=data+self.tls.read(TLS_PACKET_SIZE)
+                    except SSL.WantReadError:
+                        break                
 
         packet = tds.TDSPacket(data)
         if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
@@ -271,7 +296,7 @@ class MSSQLClientProtocol(protocol.Protocol):
                    self.tls.do_handshake()
                 except SSL.WantReadError:
                     pass
-                data2 = self.tls.bio_read(4096)
+                data2 = self.tls.bio_read(TLS_PACKET_SIZE)
                 handshake_req = tds.TDSPacket()
                 handshake_req['Type'] = tds.TDS_PRE_LOGIN
                 handshake_req['Data'] = data2
@@ -289,16 +314,25 @@ class MSSQLClientProtocol(protocol.Protocol):
                     self.tdsLoginCache = data
                     return
                 else:
-                    try:
-                        self.tls.sendall(data)
-                    except SSL.WantReadError:
-                        pass
-                    try:
-                        data = self.tls.bio_read(4096)
-                    except SSL.WantReadError:
-                        pass
-            LOG.debug("rewriting to server side: %s",data)                           
-            self.transport.write(data)
+                    packet = tds.TDSPacket(data)
+                    while True:
+                        try:
+                            self.tls.sendall(data[:packet.fields['Length']])
+                            LOG.debug("rewriting to server side: %s",data[:packet.fields['Length']])
+                        except SSL.WantReadError:
+                            pass
+                        try:
+                            self.transport.write(self.tls.bio_read(TLS_PACKET_SIZE))
+                        except SSL.WantReadError:
+                            pass
+                        if len(data) == packet.fields['Length']:
+                            break
+                        data=data[packet.fields['Length']:]
+                        packet = tds.TDSPacket(data)
+                    return
+            else:    
+                LOG.debug("rewriting to server side: %s",data)                           
+                self.transport.write(data)
 
 class LoopServerProtocol(protocol.Protocol):
     def __init__(self):

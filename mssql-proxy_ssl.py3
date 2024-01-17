@@ -212,7 +212,7 @@ class MSSQLServerProtocol(protocol.Protocol):
                 LOG.info("client side: enabling TLS ")
                 self.tls_enabled = True
 
-            if self.client_encryption_req == tds.TDS_ENCRYPT_REQ or self.client_encryption_req == tds.TDS_ENCRYPT_NOT_SUP: 
+            if self.client_encryption_req == tds.TDS_ENCRYPT_OFF or self.client_encryption_req == tds.TDS_ENCRYPT_NOT_SUP: 
                 preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_NOT_SUP)
                 data = preloginResponse.data             
 

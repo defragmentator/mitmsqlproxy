@@ -17,9 +17,9 @@ Traffic can be also easy redirected to some other middle application to manipula
 
 As example *manipulation_example.py3* show how to change all SELECT queries to UPDATE on-the-fly:
 ```
-./mssql-proxy_ssl.py3 192.168.123.2 -d -lcp 1444 &
+./mitmsqlproxy.py 192.168.123.2 -d -lcp 1444 &
 
-./manipulation_example.py3
+./manipulation_example.py
 ```
 
 ## No certificate needed
@@ -37,9 +37,9 @@ iptables -t nat -A PREROUTING -p tcp --dport 1433 -j DNAT --to-destination 127.0
 
 ## Command line options
 ```
-usage: mssql-proxy_ssl.py3 [-h] [-port PORT] [-lport LPORT] [-q | -d | -dd] [-ll ip_address] [-llp port]
-                           [-lc ip_address] [-lcp port] [--disable-loop] [--cert my.crt] [--key my.key]
-                           target
+usage: mitmsqlproxy.py [-h] [-port PORT] [-lport LPORT] [-q | -d | -dd] [-ll ip_address] [-llp port]
+                       [-lc ip_address] [-lcp port] [--disable-loop] [--cert my.crt] [--key my.key]
+                       target
 
 MSSQL MITM proxy (SSL supported).
 
@@ -59,8 +59,8 @@ Internal connection loop - decrypted data is sent to certain port (default 127.0
   -llp port       loop listening address port (default 1434)
   -lc ip_address  loop connecting address (default 127.0.0.1)
   -lcp port       loop connecting address port (default 1434)
-  --disable-loop  disable internal loop - if both sides will negotiate encryption sniffing will be useless, only
-                  credentials will be shown on console (raw data only in debug mode)
+  --disable-loop  disable internal loop - if both sides will negotiate encryption sniffing will be
+                  useless, only credentials will be shown on console (raw data only in debug mode)
 
 TLS custom private key and certificate (by default it is dynamically generated):
   --cert my.crt   certificate file

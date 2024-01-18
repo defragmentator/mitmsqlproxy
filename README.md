@@ -31,7 +31,7 @@ As example *manipulation_example.py3* show how to change all SELECT queries to U
 ```
 
 ## No certificate needed
-Self-signed certificate is generated on the fly. For default configuration of SQL libraries, it will work (only login packet is encrypted).
+Self-signed certificate is generated on-the-fly. For default configuration of SQL libraries, it will work (only login packet is encrypted).
 If on client side full encryption is forced ("Encrypt connection" is selected or "Encrypt=true;" is present in the connection string) **it will work only when "Trust server certificate" is selected or 'TrustServerCertificate=true' is in connection string**. Trusted cerificate can be also provided in command line.
 
 If needed custom user cert can be loaded from a file.

@@ -163,6 +163,7 @@ class MSSQLServerProtocol(protocol.Protocol):
     def findSQLPasswords(self,data):
         self.findSQLString(data,"CREATE USER")
         self.findSQLString(data,"CREATE LOGIN")
+        self.findSQLString(data,"ALTER LOGIN")
 
     # Client => Proxy
     def dataReceived(self, data):

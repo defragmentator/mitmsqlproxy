@@ -41,6 +41,7 @@ As example *manipulation_example.py3* show how to change all SELECT queries to U
 
 ./manipulation_example.py
 ```
+*Note: in this example substitution of strings of the same length is performed. If string length changes it is needed to recalculate TDS frame values. Here impacket.tds package can be helpful.*
 
 ## No certificate needed
 Self-signed certificate is generated on-the-fly. For default configuration of SQL libraries, it will work (only login packet is encrypted).

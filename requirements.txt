@@ -1,0 +1,3 @@
+twisted
+impacket
+pyOpenSSL

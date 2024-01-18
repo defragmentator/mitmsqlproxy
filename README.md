@@ -1,9 +1,10 @@
-# MITM SQL proxy
+# MITM SQL proxy (TLS supported)
 
-Tool for MS SQL Man In The Middle attack. 
+Tool for MS SQL Man In The Middle attack which supports TLS encryption. 
 
 ## How it works:
 It listens for connection pretending to be a real MS SQL server, decrypts traffic to obtain credentials or manipulate the queries and connect back to real SQL server and forward traffic.
+When possible it downgrades connection to non-encrypted on both sides, if not it decrypts and encrypts data on-the-fly (on one or both sides depending on need) giving access to unencrypted data if only certificate is not verified on client side (which is default on most applications) or user can provide appropriate acceptable certificate.
 
 In the future also server emulation option is planned - no SQL server will be needed to obtain credentials from the client.
 

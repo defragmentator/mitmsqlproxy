@@ -37,7 +37,7 @@ As example *manipulation_example.py* show how to change all SELECT queries to UP
 ```
 
 ```
-./mitmsqlproxy.py 192.168.123.2 -d -lcp 1444 &
+./mitmsqlproxy.py 192.168.123.2 -q -lcp 1444 &
 
 ./manipulation_example.py
 ```

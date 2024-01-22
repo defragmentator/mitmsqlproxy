@@ -87,3 +87,40 @@ TLS custom private key and certificate (by default it is dynamically generated):
   --cert my.crt   certificate file
   --key my.key    private key file
 ```
+# Inspirations and similar tools
+
+* metasploit auxiliary/server/capture/mssql - for newer clients it needs to be updated like this:
+ ```
+  def mssql_send_prelogin_response(c, info)
+    data = [
+      Constants::TDS_MSG_RESPONSE,
+      1, # status
+#      0x002b, # length
+      0x0030, # length
+      #"0000010000001a00060100200001020021000103002200000400220001ff0a3206510000020000"
+      "0000010000001f000601002500010200260001030027000004002700010500280000ff0f0008350000020001"
+    ].pack("CCnH*")
+    c.put data
+  end
+```
+Despite the visible option *SSL,SSLCert* it does not support encryption. It supports NTLM, but it is useful only when client is executed on the same machine as server.
+
+* SSLsplit - has autossl option to detect ClientHello packet for STARTTLS et al, but it can find it only on the beginning of the packet. In TDS all handshake packets need to have TDS header so even with proper ClientHello detection it will not work (what is wired, after handshake TDS headers are dropped and included inside TLS tunnel).
+
+* PolarProxy, stunnel - they are good for HTTP, but they cannot be configured for partial encryption with custom header.
+
+* SQL Server Profiler - will redact LOGIN CREATE/ALTER passwords (it will work only on very old versions), won't show login credentials.
+
+* SSLKEYLOGFILE environment variable will not work for other apps (MSSQL Clients) like for the web browsers. Even adding this option to Impacket's mssqlclient.py didn't work for me. When only TDS_LOGIN7 packet is encrypted probably because of lack of certificate use. 
+
+* https://blog.thinkst.com/2015/11/stripping-encryption-from-microsoft-sql.html and their script https://gist.github.com/thinkst/db909e3a41c5cb07d43f - works as proxy, can downgrade to no encryption, but it needs to be tuned by hand with editing hexs. TLS is not supported.
+
+* https://github.com/MindFlavor/TDSBridge - works as proxy. Authors say "(it even works with server side forced encryption)", but it didn't work for me and as far as I searched, I did not find the code responsible for encryption in the sources.
+
+* Echo Mirage - very old and did not work - should inject to a process and get data before/after encryption.
+
+# To do
+* NTLM support
+* stand-alone option - emulating MS SQL Server as long as we can (catch credentials, try to respond to queries with empty responses to get LOGIN CREATE/ALTER passwords)
+* search for custom queries defined by regular expressions
+* overriding Servername in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)

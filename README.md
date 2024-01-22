@@ -123,4 +123,4 @@ Despite the visible option *SSL,SSLCert* it does not support encryption. It supp
 * NTLM support
 * stand-alone option - emulating MS SQL Server as long as we can (catch credentials, try to respond to queries with empty responses to get LOGIN CREATE/ALTER passwords)
 * search for custom queries defined by regular expressions
-* overriding Servername in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)
+* overwriting Servername in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)

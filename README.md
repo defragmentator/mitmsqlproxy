@@ -23,7 +23,7 @@ tcpdump -i lo port 1434 -X
 ## Easy queries manipulation
 Traffic can be also easy redirected to some other middle application to manipulate queries. It needs to listen on some port, manipulate the data and send it back to some other port. All processed data is already decrypted.
 
-As example *manipulation_example.py3* show how to change all SELECT queries to UPDATE on-the-fly:
+As example *manipulation_example.py* show how to change all SELECT queries to UPDATE on-the-fly:
 
 ```python
 ...

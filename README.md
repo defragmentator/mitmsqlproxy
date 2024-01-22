@@ -112,7 +112,7 @@ TLS custom private key and certificate (by default it is dynamically generated):
 
 * SSLKEYLOGFILE environment variable will not work for other apps (MSSQL Clients) like for the web browsers. Even adding this option to Impacket's mssqlclient.py didn't work for me. When only TDS_LOGIN7 packet is encrypted probably because of lack of certificate use. 
 
-* https://blog.thinkst.com/2015/11/stripping-encryption-from-microsoft-sql.html and their script https://gist.github.com/thinkst/db909e3a41c5cb07d43f - works as proxy, can downgrade to no encryption, but it needs to be tuned by hand with editing hexs. TLS is not supported.
+* https://blog.thinkst.com/2015/11/stripping-encryption-from-microsoft-sql.html and their script https://gist.github.com/thinkst/db909e3a41c5cb07d43f - works as proxy, can downgrade to no encryption, but it needs to be tuned by hand with editing hexes. TLS is not supported.
 
 * https://github.com/MindFlavor/TDSBridge - works as proxy. Authors say "(it even works with server side forced encryption)", but it didn't work for me and as far as I searched, I did not find the code responsible for encryption in the sources.
 

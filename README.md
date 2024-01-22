@@ -122,4 +122,4 @@ TLS custom private key and certificate (by default it is dynamically generated):
 * NTLM support
 * stand-alone option - emulating MS SQL Server as long as we can (catch credentials, try to respond to queries with empty responses to get LOGIN CREATE/ALTER passwords)
 * search for custom queries defined by regular expressions
-* overwriting Servername in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)
+* overwriting ServerName field in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)

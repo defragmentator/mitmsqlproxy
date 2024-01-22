@@ -89,7 +89,7 @@ TLS custom private key and certificate (by default it is dynamically generated):
 ```
 # Inspirations and similar tools
 
-* metasploit auxiliary/server/capture/mssql - for newer clients it needs to be updated like this:
+* metasploit auxiliary/server/capture/mssql - despite the visible option *SSL,SSLCert* it does not support encryption. It supports NTLM, but it is useful only when client is executed on the same machine as server. For newer clients it needs to be updated like this:
  ```
   def mssql_send_prelogin_response(c, info)
     data = [
@@ -103,7 +103,6 @@ TLS custom private key and certificate (by default it is dynamically generated):
     c.put data
   end
 ```
-Despite the visible option *SSL,SSLCert* it does not support encryption. It supports NTLM, but it is useful only when client is executed on the same machine as server.
 
 * SSLsplit - has autossl option to detect ClientHello packet for STARTTLS et al, but it can find it only on the beginning of the packet. In TDS all handshake packets need to have TDS header so even with proper ClientHello detection it will not work (what is wired, after handshake TDS headers are dropped and included inside TLS tunnel).
 

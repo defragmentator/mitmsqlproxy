@@ -104,7 +104,7 @@ TLS custom private key and certificate (by default it is dynamically generated):
   end
 ```
 
-* SSLsplit - has autossl option to detect ClientHello packet for STARTTLS et al, but it can find it only on the beginning of the packet. In TDS all handshake packets need to have TDS header so even with proper ClientHello detection it will not work (what is wired, after handshake TDS headers are dropped and included inside TLS tunnel).
+* SSLsplit - has autossl option to detect ClientHello packet for STARTTLS et al, but it can find it only on the beginning of the packet. In TDS all handshake packets need to have TDS header so even with proper ClientHello detection it will not work (what is weird, after handshake TDS headers are dropped and included inside TLS tunnel).
 
 * PolarProxy, stunnel - they are good for HTTP, but they cannot be configured for partial encryption with custom header.
 

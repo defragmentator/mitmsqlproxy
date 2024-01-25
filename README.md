@@ -13,6 +13,14 @@ It shows passwords of connected users as well as those created or altered (chang
 
 ![screen](https://github.com/defragmentator/mitmsqlproxy/blob/master/screen.png?raw=true)
 
+## Dumping interesting queries
+Easy dumping interesting parts of the TDS packet (query\*) containing certain string or matching regular a expression:
+```
+    -f string_to_find  case insensitive, shows data from searched string occurence to potential
+                        end of the entire string inside TDS packet (x00x00x00x00)
+    -r regexp_to_find  e.g. -r '(?i)SELECT.*MyTable[\x00-\x7F]*'
+```
+*Note: it does NOT parse TDS packet or search only in query string part of the packet. If it is fragmented shows only the chunk containing string/regexp.
 
 
 ## Easy sniffing
@@ -58,34 +66,45 @@ iptables -t nat -A PREROUTING -p tcp --dport 1433 -j DNAT --to-destination 127.0
 
 ## Command line options
 ```
-usage: mitmsqlproxy.py [-h] [-port PORT] [-lport LPORT] [-q | -d | -dd] [-ll ip_address] [-llp port]
-                       [-lc ip_address] [-lcp port] [--disable-loop] [--cert my.crt] [--key my.key]
-                       target
+usage: mitmsqlproxy.py [-h] [-port PORT] [-lport LPORT] [-f string_to_find] [-q | -d | -dd]
+                        [-ll ip_address] [-llp port] [-lc ip_address]
+                        [-lcp port] [--disable-loop] [--cert my.crt] [--key my.key] target
 
 MSSQL MITM proxy (SSL supported).
 
 positional arguments:
-  target          MSSQL server name or address
+  target             MSSQL server name or address
 
 options:
-  -h, --help      show this help message and exit
-  -port PORT      MSSQL server port (default 1433)
-  -lport LPORT    local listening port (default 1433)
-  -q              quiet mode
-  -d              show more info
-  -dd             show debug info
+  -h, --help         show this help message and exit
+  -port PORT         MSSQL server port (default 1433)
+  -lport LPORT       local listening port (default 1433)
+ 
+ Searches in raw packet for a string/regexp (does NOT: parse TDS packet or search only in query,
+  if fragmented shows only the chunk containing string/regexp), can be used multiple times in
+  command line:
+  -f string_to_find  case insensitive
+  -r regexp_to_find  e.g. -r '(?i)SELECT.*MyTable[\x00-\x7F]*'
 
-Internal connection loop - decrypted data is sent to certain port (default 127.0.0.1:1434) and coming back to mitmslqproxy to be encrypted and send further. This option allows to sniff or even modify unencrypted SQL traffic in the fly with third party application:
-  -ll ip_address  loop listening address (default 127.0.0.1)
-  -llp port       loop listening address port (default 1434)
-  -lc ip_address  loop connecting address (default 127.0.0.1)
-  -lcp port       loop connecting address port (default 1434)
-  --disable-loop  disable internal loop - if both sides will negotiate encryption sniffing will be
-                  useless, only credentials will be shown on console (raw data only in debug mode)
+  -q                 quiet mode
+  -d                 show more info
+  -dd                show debug info
+
+Internal connection loop - decrypted data is sent to certain port (default 127.0.0.1:1434) and
+coming back to mitmslqproxy to be encrypted and send further. This option allows to sniff or
+even modify unencrypted SQL traffic in the fly with third party application:
+
+  -ll ip_address     loop listening address (default 127.0.0.1)
+  -llp port          loop listening address port (default 1434)
+  -lc ip_address     loop connecting address (default 127.0.0.1)
+  -lcp port          loop connecting address port (default 1434)
+  --disable-loop     disable internal loop - if both sides will negotiate encryption sniffing
+                        will be useless, only credentials will be shown on console (raw data
+                        only in debug mode)
 
 TLS custom private key and certificate (by default it is dynamically generated):
-  --cert my.crt   certificate file
-  --key my.key    private key file
+  --cert my.crt      certificate file
+  --key my.key       private key file
 ```
 # Inspirations and similar tools
 
@@ -121,5 +140,5 @@ TLS custom private key and certificate (by default it is dynamically generated):
 # To do
 * NTLM support
 * stand-alone option - emulating MS SQL Server as long as we can (catch credentials, try to respond to queries with empty responses to get LOGIN CREATE/ALTER passwords)
-* search for custom queries defined by regular expressions
+* full TDS packet parsing during search for strings and regular expressions in queries, defragmentation of queries
 * overwriting ServerName field in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)

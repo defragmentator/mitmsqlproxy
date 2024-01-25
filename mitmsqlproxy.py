@@ -13,6 +13,11 @@
 # do zrobienia:
 # - emulacja serwera
 # - wlasna fabryka do wspoldzielenia danych - https://stackoverflow.com/questions/14848793/passing-parameters-to-twisted-factory-to-be-passed-to-session
+# - requirements https://www.freecodecamp.org/news/python-requirementstxt-explained/
+# - naspisywanie server_name TDS_Login
+# - wyszczegolnianie zapytan z regexp
+# - zawiesza sie przy szyfrowaniu od strony klienta przy liście baz w SQL Server Management Studio. Jak szyfrowanie od str serwera to ok
+
 
 TDS_RESPONSE          = 4
 TDS_HEADER_SIZE       = 8
@@ -29,10 +34,13 @@ YELLOW = "\033[93m"
 PURPLE = '\033[0;35m' 
 CYAN = "\033[36m"
 END = "\033[0m"
+CROSSED = "\x1b[9m"
+NOT_CROSSED = "\x1b[29m"
 
 import sys
 import logging
 import argparse
+import re
 from random import SystemRandom
 
 from twisted.internet import protocol, reactor
@@ -156,14 +164,29 @@ class MSSQLServerProtocol(protocol.Protocol):
         LOG.warning("")
 
     def findSQLString(self,data,sql):
-        i = data.lower().find(sql.encode('utf-16le').lower())
-        if i > -1:
-            LOG.warning("%s%s%s",RED,data[i:].decode('utf-16le'),END) 
+        start = data.lower().find(sql.encode('utf-16le').lower())
+        if start > -1:
+            len = data[start:].find(b"\x00\x00\x00\x00")
+            LOG.warning("%s%s%s",RED,data[start:start+len].decode('utf-16le', errors='ignore'),END) 
 
     def findSQLPasswords(self,data):
         self.findSQLString(data,"CREATE USER")
         self.findSQLString(data,"CREATE LOGIN")
         self.findSQLString(data,"ALTER LOGIN")
+
+    def checkPacketforStrings(self,data):
+        self.findSQLPasswords(data)
+        for query in Config.findQuery or []:
+            self.findSQLString(data,query)
+
+    def checkPacketforRegexp(self,data):
+        for query in Config.findQueryRe or []:
+            self.findSQLRegexp(data,query)
+
+    def findSQLRegexp(self, data, regexp):
+        x = re.findall(regexp,data.decode('utf-16le', errors='ignore'))
+        if x:
+            LOG.warning("%s%s%s",RED,x[0],END)
 
     # Client => Proxy
     def dataReceived(self, data):
@@ -209,7 +232,8 @@ class MSSQLServerProtocol(protocol.Protocol):
                 prelogin.setEncryptionOption(tds.TDS_ENCRYPT_REQ)
                 data=prelogin.data
 
-        self.findSQLPasswords(data)
+        self.checkPacketforStrings(data)
+        self.checkPacketforRegexp(data)
 
         if self.client:
             self.client.write(data)
@@ -398,6 +422,9 @@ class Config:
     key_pair = None
     cert = None
     serverRequiresEncryption = False
+    findQuery = None
+    findQueryRe = None
+
 
 #class MyServerFactory(protocol.ServerFactory):
 #    config = Config()
@@ -442,6 +469,11 @@ def getArgs():
     parser.add_argument('target', action='store', help='MSSQL server name or address')
     parser.add_argument('-port', action='store', default='1433', help='MSSQL server port (default 1433)')
     parser.add_argument('-lport', action='store', default='1433', help='local listening port (default 1433)')
+
+    group = parser.add_argument_group("Searches in raw packet for a string/regexp (does NOT: parse TDS packet or search only in query, if fragmented shows only the chunk containing string/regexp), can be used multiple times in command line")
+    group.add_argument('-f', metavar = "string_to_find", action='append', help='case insensitive')
+    group.add_argument('-r', metavar = "regexp_to_find", action='append', help='e.g. -r \'(?i)SELECT.*MyTable[\\x00-\\x7F]*\'')
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-q', action='store_true', help='quiet mode')
     group.add_argument('-d', action='store_true', help='show more info')
@@ -473,6 +505,8 @@ def getArgs():
     Config.serverLoopPort=int(options.llp)   
     Config.clientLoopAddr=options.lc
     Config.clientLoopPort=int(options.lcp) 
+    Config.findQuery=options.f
+    Config.findQueryRe=options.r
 
     if options.key and options.cert:
         Config.certFromFile = True
@@ -514,7 +548,7 @@ def main():
     getServerEncryption()
 
     if Config.loop:
-        LOG.warning("Starting loop decrypted connection for proxy or sniffer on loopback interface\n[ client->0.0.0:%s-(decryption)->%s:%s->%s:%s-(encryption)->%s:%s ]",Config.listenPort,Config.clientLoopAddr,Config.clientLoopPort,Config.serverLoopAddr,Config.serverLoopPort,Config.serverAddr,Config.serverPort)
+        LOG.warning("Starting loop decrypted connection for proxy or sniffer on loopback interface\n[ client->0.0.0:%s-(decryption)->%s:%s->%s:%s-(%s)->%s:%s ]",Config.listenPort,Config.clientLoopAddr,Config.clientLoopPort,Config.serverLoopAddr,Config.serverLoopPort,("encryption" if Config.serverRequiresEncryption else f"{CROSSED}encryption{NOT_CROSSED}-downgreaded"),Config.serverAddr,Config.serverPort)
         startLoop()
     startListener()
     LOG.warning("Waiting for connections on port %s...",Config.listenPort)

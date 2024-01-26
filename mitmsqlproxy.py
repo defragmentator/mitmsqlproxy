@@ -13,7 +13,6 @@
 # do zrobienia:
 # - emulacja serwera
 # - wlasna fabryka do wspoldzielenia danych - https://stackoverflow.com/questions/14848793/passing-parameters-to-twisted-factory-to-be-passed-to-session
-# - requirements https://www.freecodecamp.org/news/python-requirementstxt-explained/
 # - naspisywanie server_name TDS_Login
 
 TDS_RESPONSE          = 4

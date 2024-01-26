@@ -257,7 +257,7 @@ class MSSQLServerProtocol(protocol.Protocol):
                     break
                 data=data[packet.fields['Length']:]
                 packet = tds.TDSPacket(data)
-                return
+            return
         else:
             packet = tds.TDSPacket(data)
             if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:

@@ -15,8 +15,6 @@
 # - wlasna fabryka do wspoldzielenia danych - https://stackoverflow.com/questions/14848793/passing-parameters-to-twisted-factory-to-be-passed-to-session
 # - requirements https://www.freecodecamp.org/news/python-requirementstxt-explained/
 # - naspisywanie server_name TDS_Login
-# - zawiesza sie przy szyfrowaniu od strony klienta przy liście baz w SQL Server Management Studio. Jak szyfrowanie od str serwera to ok
-
 
 TDS_RESPONSE          = 4
 TDS_HEADER_SIZE       = 8

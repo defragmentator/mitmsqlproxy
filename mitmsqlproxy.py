@@ -163,7 +163,10 @@ class MSSQLServerProtocol(protocol.Protocol):
         start = data.lower().find(sql.encode('utf-16le').lower())
         if start > -1:
             len = data[start:].find(b"\x00\x00\x00\x00")
-            LOG.warning("%s%s%s",RED,data[start:start+len].decode('utf-16le', errors='ignore'),END) 
+            if len > -1:
+                LOG.warning("string: %s%s%s",RED,data[start:start+len].decode('utf-16le', errors='ignore'),END) 
+            else:
+                LOG.warning("string: %s%s%s",RED,data[start:].decode('utf-16le', errors='ignore'),END) 
 
     def findSQLPasswords(self,data):
         self.findSQLString(data,"CREATE USER")
@@ -182,7 +185,7 @@ class MSSQLServerProtocol(protocol.Protocol):
     def findSQLRegexp(self, data, regexp):
         x = re.findall(regexp,data.decode('utf-16le', errors='ignore'))
         if x:
-            LOG.warning("%s%s%s",RED,x[0],END)
+            LOG.warning("regexp: %s%s%s",RED,x[0],END)
 
     # Client => Proxy
     def dataReceived(self, data):

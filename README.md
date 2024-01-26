@@ -3,10 +3,8 @@
 Tool for MS SQL Man In The Middle attack which supports TLS encryption. 
 
 ## How it works:
-It listens for connection pretending to be a real MS SQL server, decrypts traffic to obtain credentials or manipulate the queries and connect back to real SQL server and forward traffic.
-When possible it downgrades connection to non-encrypted on both sides, if not it decrypts and encrypts data on-the-fly (on one or both sides depending on need) giving access to unencrypted data if only certificate is not verified on client side (which is default on most applications) or user can provide appropriate acceptable certificate.
-
-In the future also server emulation option is planned - no SQL server will be needed to obtain credentials from the client.
+It listens for connection pretending to be a real MS SQL Server, decrypts traffic to obtain credentials or manipulate the queries and connect back to real SQL server and forward traffic.
+When possible it downgrades connection to non-encrypted on both sides, if not it decrypts and encrypts data on-the-fly (on one or both sides depending on need) giving access to unencrypted data if only certificate is not verified on client side (which is default on most applications) or user can provide appropriate acceptable certificate. It can also emulate MS SQL Server to obtain credentials form connecting clients without use of a real server for forwarding.
 
 ## Dumping passwords
 It shows passwords of connected users as well as those created or altered (changed) during the connection.
@@ -51,6 +49,9 @@ As example *manipulation_example.py* show how to change all SELECT queries to UP
 ```
 *Note: in this example substitution of strings of the same length is performed. If string length changes it is needed to recalculate TDS frame values. Here impacket.tds package can be helpful.*
 
+## Server emualtion
+Using **null** as target MS SQL Server emulation is enabled, use of a real server for forwarding is not needed any more. Full handshake is performed, credentials are dropped and after that most of the clients will drop the connection due to errors (for each query *mitmsqlproxy* sends back a fake packet containing one row and one column).
+
 ## No certificate needed
 Self-signed certificate is generated on-the-fly. For default configuration of SQL libraries, it will work (only login packet is encrypted).
 If on client side full encryption is forced ("Encrypt connection" is selected or "Encrypt=true;" is present in the connection string) **it will work only when "Trust server certificate" is selected or 'TrustServerCertificate=true' is in connection string**. Trusted cerificate can be also provided in command line.
@@ -73,22 +74,22 @@ usage: mitmsqlproxy.py [-h] [-port PORT] [-lport LPORT] [-f string_to_find] [-q 
 MSSQL MITM proxy (SSL supported).
 
 positional arguments:
-  target             MSSQL server name or address
+  target             MSSQL server name or address (use "null" for MSSQL server emulation - 
+                      connection will be dropped after obtaining credentials)
 
 options:
   -h, --help         show this help message and exit
   -port PORT         MSSQL server port (default 1433)
   -lport LPORT       local listening port (default 1433)
- 
+  -q                 quiet mode
+  -d                 show more info
+  -dd                show debug info
+
  Searches in raw packet for a string/regexp (does NOT: parse TDS packet or search only in query,
   if fragmented shows only the chunk containing string/regexp), can be used multiple times in
   command line:
   -f string_to_find  case insensitive
   -r regexp_to_find  e.g. -r '(?i)SELECT.*MyTable[\x00-\x7F]*'
-
-  -q                 quiet mode
-  -d                 show more info
-  -dd                show debug info
 
 Internal connection loop - decrypted data is sent to certain port (default 127.0.0.1:1434) and
 coming back to mitmslqproxy to be encrypted and send further. This option allows to sniff or
@@ -139,6 +140,5 @@ TLS custom private key and certificate (by default it is dynamically generated):
 
 # To do
 * NTLM support
-* stand-alone option - emulating MS SQL Server as long as we can (catch credentials, try to respond to queries with empty responses to get LOGIN CREATE/ALTER passwords)
 * full TDS packet parsing during search for strings and regular expressions in queries, defragmentation of queries
 * overwriting ServerName field in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)

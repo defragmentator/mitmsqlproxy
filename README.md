@@ -127,6 +127,8 @@ TLS custom private key and certificate (by default it is dynamically generated):
 ```
 * tds-downgrade.py - this tool was presented as POC here: http://blog.blindspotsecurity.com/2017/12/advanced-sql-server-mitm-attacks.html and DOES SUPPORT TLS. It has two modes: ***downgrade*** and ***cert***, the only function it supports is logging decrypted traffic to files. For me it worked only in ***downgrade*** mode, but it was very unstable. It can be downloaded here: https://github.com/ecbftw/poc/blob/master/mssql-mitm/tds-downgrade.py
 
+* https://github.com/tech-software/TDSProxy - written in C#, it uses similar mechanisms, but the intention is to filter certain users by proxy behind MS SQL server. It uses custom user DLL plugins with filters. For me it wasn't working as expected, especially when server side was forcing TLS (client side TLS communication was established). 
+
 * SSLsplit - has autossl option to detect ClientHello packet for STARTTLS et al, but it can find it only on the beginning of the packet. In TDS all handshake packets need to have TDS header so even with proper ClientHello detection it will not work (what is weird, after handshake TDS headers are dropped and included inside TLS tunnel).
 
 * PolarProxy, stunnel - they are good for HTTP, but they cannot be configured for partial encryption with custom header.

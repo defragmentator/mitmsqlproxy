@@ -138,6 +138,8 @@ TLS custom private key and certificate (by default it is dynamically generated):
 
 * https://github.com/MindFlavor/TDSBridge - works as proxy. Authors say "(it even works with server side forced encryption)", but it didn't work for me and as far as I searched, I did not find the code responsible for encryption in the sources.
 
+* sqlmitm.py from https://www.anitian.com/hacking-sql-servers-without-password/ - no encrytpion supported.
+
 * Echo Mirage - very old and did not work - should inject to a process and get data before/after encryption.
 
 # To do

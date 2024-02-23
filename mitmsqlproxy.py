@@ -119,7 +119,7 @@ class MSSQLServerProtocol(protocol.Protocol):
     def gen_cert(self):
             LOG.info("client side: generating temporary TLS certificate")
             Config.key_pair = crypto.PKey()
-            Config.key_pair.generate_key(crypto.TYPE_RSA, 1024)
+            Config.key_pair.generate_key(crypto.TYPE_RSA, 2048)
 
             Config.cert = crypto.X509()
             Config.cert.get_subject().O = 'Loki'

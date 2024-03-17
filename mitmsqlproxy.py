@@ -137,7 +137,7 @@ class MSSQLServerProtocol(protocol.Protocol):
             Config.cert.sign(Config.key_pair, 'sha256')
 
     def getLoginField(self, login, name):
-        return self.getLoginFieldB(login, name).decode()
+        return self.getLoginFieldB(login, name).decode('utf-16le', errors='ignore')
 
     def getLoginFieldB(self, login, name):
         return login.rawData[login.fields[name+'Offset']:login.fields[name+'Offset']+login.fields[name+'Length']*2]

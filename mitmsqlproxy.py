@@ -218,6 +218,12 @@ class MSSQLServerProtocol(protocol.Protocol):
 
         if packet.fields['Type'] == tds.TDS_LOGIN7:
             login = tds.TDS_LOGIN(packet.fields['Data'])
+            if login['SSPILength'] > 0:
+                LOG.debug("TDS packet: %s",vars(login))
+                LOG.critical("NTLM not supported yet!!!")
+                self.transport.abortConnection()
+#                self.transport.loseConnection()
+                return
             self.parseLogin(login)
 
         if packet.fields['Type'] == tds.TDS_PRE_LOGIN and self.before_prelogin:

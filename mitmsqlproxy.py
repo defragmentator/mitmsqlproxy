@@ -36,7 +36,7 @@ import sys
 import logging
 import argparse
 import re
-from random import SystemRandom
+from random import SystemRandom, randint
 
 from twisted.internet import protocol, reactor
 from impacket import tds, LOG, version
@@ -255,8 +255,24 @@ class MSSQLServerProtocol(protocol.Protocol):
         LOG.debug("fake TDS packet recv: %s",vars(packet))
 
         if packet.fields['Type'] == tds.TDS_PRE_LOGIN:
-            packet.fields['Type']=TDS_RESPONSE
-            data=packet.getData()
+            if (1==1):
+                LOG.info("fake TDS packet - generating TDS_PRE_LOGIN")
+                prelogin = tds.TDS_PRELOGIN()
+                prelogin['Version'] = b"\x0f\x00\x08\x38\x00\x00"
+                prelogin['Encryption'] = tds.TDS_ENCRYPT_NOT_SUP
+                prelogin['ThreadID'] = tds.struct.pack('<L',randint(0,65535))
+                prelogin['Instance'] = b'\x00'
+                tds_response = tds.TDSPacket()
+                tds_response['Type'] = TDS_RESPONSE
+                tds_response['Status'] = tds.TDS_STATUS_EOM
+                tds_response['PacketID'] = 2
+                tds_response['Data'] = prelogin.getData()
+                data=tds_response.getData()
+            else:
+                #does not work for some clients - left for experiments
+                LOG.info("fake TDS packet - rewriting TDS_PRE_LOGIN")
+                packet.fields['Type']=TDS_RESPONSE
+                data=packet.getData()
 
         if packet.fields['Type'] == tds.TDS_LOGIN7:
             # fake SQL Server response

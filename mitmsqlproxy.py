@@ -456,8 +456,8 @@ class Config:
     serverPort = 1433
     serverAddr = None
     serverLoopAddr = "127.0.0.1"
-    serverLoopPort = 1434
-    clientLoopPort = 1434
+    serverLoopPort = 2433
+    clientLoopPort = 2433
     clientLoopAddr = "127.0.0.1"
     debugLevel = logging.WARNING
     certFile = None
@@ -514,11 +514,11 @@ def getArgs():
     group.add_argument('-d', action='store_true', help='show more info')
     group.add_argument('-dd', action='store_true', help='show debug info')
 
-    group = parser.add_argument_group('Internal connection loop - decrypted data is sent to certain port (default 127.0.0.1:1434) and coming back to mitmslqproxy to be encrypted and send further. This option allows to sniff or even modify unencrypted SQL traffic in the fly with third party application')
+    group = parser.add_argument_group('Internal connection loop - decrypted data is sent to certain port (default 127.0.0.1:2433) and coming back to mitmslqproxy to be encrypted and send further. This option allows to sniff or even modify unencrypted SQL traffic in the fly with third party application')
     group.add_argument('-ll', action='store',  help='loop listening address (default 127.0.0.1)', metavar = "ip_address", default='127.0.0.1')
-    group.add_argument('-llp', action='store', help='loop listening address port (default 1434)', metavar = "port", default='1434')
+    group.add_argument('-llp', action='store', help='loop listening address port (default 2433)', metavar = "port", default='2433')
     group.add_argument('-lc', action='store',  help='loop connecting address (default 127.0.0.1)',metavar = "ip_address", default='127.0.0.1')
-    group.add_argument('-lcp', action='store', help='loop connecting address port (default 1434)',metavar = "port", default='1434')
+    group.add_argument('-lcp', action='store', help='loop connecting address port (default 2433)',metavar = "port", default='2433')
     group.add_argument('--disable-loop', action='store_true', help='disable internal loop - if both sides will negotiate encryption sniffing will be useless, only credentials will be shown on console (raw data only in debug mode)', dest="disableloop")
 
     group = parser.add_argument_group('TLS custom private key and certificate (by default it is dynamically generated)')

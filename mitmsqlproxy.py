@@ -58,7 +58,7 @@ class TDSPreLogin:
 
     def getEncryptionOption(self):
             return self.data[TDS_HEADER_SIZE+self.getEncryptionOptionOffset()]
-            
+
     def getEncryptionOptionOffset(self):
         return self.getOptionOffset(TDS_PRELOGIN_OPTION_ENCRYPTION_TOKEN)
 
@@ -106,7 +106,7 @@ class MSSQLServerProtocol(protocol.Protocol):
 
         factory = protocol.ClientFactory()
         factory.server = self
-        
+
         if Config.loop:
             factory.protocol = LoopClientProtocol
             reactor.connectTCP(Config.clientLoopAddr, Config.clientLoopPort, factory)
@@ -165,9 +165,9 @@ class MSSQLServerProtocol(protocol.Protocol):
         if start > -1:
             len = data[start:].find(b"\x00\x00\x00\x00")
             if len > -1:
-                LOG.warning("string: %s%s%s",RED,data[start:start+len].decode('utf-16le', errors='ignore'),END) 
+                LOG.warning("string: %s%s%s",RED,data[start:start+len].decode('utf-16le', errors='ignore'),END)
             else:
-                LOG.warning("string: %s%s%s",RED,data[start:].decode('utf-16le', errors='ignore'),END) 
+                LOG.warning("string: %s%s%s",RED,data[start:].decode('utf-16le', errors='ignore'),END)
 
     def findSQLPasswords(self,data):
         self.findSQLString(data,"CREATE USER")
@@ -276,7 +276,7 @@ class MSSQLServerProtocol(protocol.Protocol):
 
         if packet.fields['Type'] == tds.TDS_LOGIN7:
             # fake SQL Server response
-            data = b"\x04\x01\x01\xa5\x00D\x01\x00\xe3\x1b\x00\x01\x06m\x00a\x00s\x00t\x00e\x00r\x00\x06m\x00a\x00s\x00t\x00e\x00r\x00\xab^\x00E\x16\x00\x00\x02\x00%\x00C\x00h\x00a\x00n\x00g\x00e\x00d\x00 \x00d\x00a\x00t\x00a\x00b\x00a\x00s\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00x\x00t\x00 \x00t\x00o\x00 \x00'\x00m\x00a\x00s\x00t\x00e\x00r\x00'\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xe3\x08\x00\x07\x05\x15\x04\xd0\x00\x00\x00\xe3\x0f\x00\x02\x06p\x00o\x00l\x00s\x00k\x00i\x00\x00\xab`\x00G\x16\x00\x00\x01\x00&\x00Z\x00m\x00i\x00e\x00n\x00i\x00o\x00n\x00o\x00 \x00u\x00s\x00t\x00a\x00w\x00i\x00e\x00n\x00i\x00a\x00 \x00j\x00\x19\x01z\x00y\x00k\x00a\x00 \x00n\x00a\x00 \x00p\x00o\x00l\x00s\x00k\x00i\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xad6\x00\x01t\x00\x00\x04\x16M\x00i\x00c\x00r\x00o\x00s\x00o\x00f\x00t\x00 \x00S\x00Q\x00L\x00 \x00S\x00e\x00r\x00v\x00e\x00r\x00\x00\x00\x00\x00\x0f\x00\x085\xe3\x13\x00\x04\x044\x000\x009\x006\x00\x044\x000\x009\x006\x00\xae\x01.\x00\x00\x00\x00\x09\x00`\x81\x14\xff\xe7\xff\xff\x00\x02\x02\x01\x02\x04\x01\x00\x05\x04\xff\xff\xff\xff\x06\x01\x00\x07\x01\x02\x08\x08\x00\x00\x00\x00\x00\x00\x00\x00\x09\x04\xff\xff\xff\xff\x09\x02\x00\x00\x00\x02\x01\x0a\x01\x00\x00\x00\x01\xff\xfd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"    
+            data = b"\x04\x01\x01\xa5\x00D\x01\x00\xe3\x1b\x00\x01\x06m\x00a\x00s\x00t\x00e\x00r\x00\x06m\x00a\x00s\x00t\x00e\x00r\x00\xab^\x00E\x16\x00\x00\x02\x00%\x00C\x00h\x00a\x00n\x00g\x00e\x00d\x00 \x00d\x00a\x00t\x00a\x00b\x00a\x00s\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00x\x00t\x00 \x00t\x00o\x00 \x00'\x00m\x00a\x00s\x00t\x00e\x00r\x00'\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xe3\x08\x00\x07\x05\x15\x04\xd0\x00\x00\x00\xe3\x0f\x00\x02\x06p\x00o\x00l\x00s\x00k\x00i\x00\x00\xab`\x00G\x16\x00\x00\x01\x00&\x00Z\x00m\x00i\x00e\x00n\x00i\x00o\x00n\x00o\x00 \x00u\x00s\x00t\x00a\x00w\x00i\x00e\x00n\x00i\x00a\x00 \x00j\x00\x19\x01z\x00y\x00k\x00a\x00 \x00n\x00a\x00 \x00p\x00o\x00l\x00s\x00k\x00i\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xad6\x00\x01t\x00\x00\x04\x16M\x00i\x00c\x00r\x00o\x00s\x00o\x00f\x00t\x00 \x00S\x00Q\x00L\x00 \x00S\x00e\x00r\x00v\x00e\x00r\x00\x00\x00\x00\x00\x0f\x00\x085\xe3\x13\x00\x04\x044\x000\x009\x006\x00\x044\x000\x009\x006\x00\xae\x01.\x00\x00\x00\x00\x09\x00`\x81\x14\xff\xe7\xff\xff\x00\x02\x02\x01\x02\x04\x01\x00\x05\x04\xff\xff\xff\xff\x06\x01\x00\x07\x01\x02\x08\x08\x00\x00\x00\x00\x00\x00\x00\x00\x09\x04\xff\xff\xff\xff\x09\x02\x00\x00\x00\x02\x01\x0a\x01\x00\x00\x00\x01\xff\xfd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
 
         if  packet.fields['Type'] == tds.TDS_SQL_BATCH:
             # fake empty one row one column response
@@ -316,7 +316,7 @@ class MSSQLServerProtocol(protocol.Protocol):
 
                 if self.client_encryption_req == tds.TDS_ENCRYPT_OFF or self.client_encryption_req == tds.TDS_ENCRYPT_NOT_SUP: 
                     preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_NOT_SUP)
-                    data = preloginResponse.data             
+                    data = preloginResponse.data
 
             self.transport.write(data)
 
@@ -339,7 +339,7 @@ class MSSQLClientProtocol(protocol.Protocol):
     # Server => Proxy
     def dataReceived(self, data):
         if self.tls_enabled:
-            if self.tls_finished == False:                
+            if self.tls_finished == False:
                 LOG.debug("server side: TLS handshake receive")
                 self.tls.bio_write(data[8:])
                 try:
@@ -365,13 +365,13 @@ class MSSQLClientProtocol(protocol.Protocol):
                     try:
                         data=data+self.tls.read(TLS_PACKET_SIZE)
                     except SSL.WantReadError:
-                        break                
+                        break
 
         packet = tds.TDSPacket(data)
         if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
             preloginResponse = TDSPreLogin(data)
 
-            if (preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_ON or preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_REQ) and Config.serverRequiresEncryption: 
+            if (preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_ON or preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_REQ) and Config.serverRequiresEncryption:
                 LOG.info("server side: TLS required - enabling") 
                 self.tls_enabled = True
                 try:
@@ -412,8 +412,8 @@ class MSSQLClientProtocol(protocol.Protocol):
                         data=data[packet.fields['Length']:]
                         packet = tds.TDSPacket(data)
                     return
-            else:    
-                LOG.debug("rewriting to server side: %s",data)                           
+            else:
+                LOG.debug("rewriting to server side: %s",data)
                 self.transport.write(data)
 
 class LoopServerProtocol(protocol.Protocol):
@@ -535,7 +535,7 @@ def getArgs():
 
     group = parser.add_argument_group('TLS custom private key and certificate (by default it is dynamically generated)')
     group.add_argument('--cert', action='store', help='certificate file', metavar = "my.crt", default=None)
-    group.add_argument('--key' , action='store', help='private key file', metavar = "my.key", default=None)                                    
+    group.add_argument('--key' , action='store', help='private key file', metavar = "my.key", default=None)
 
     if len(sys.argv)==1:
         parser.print_help()
@@ -567,13 +567,13 @@ def getArgs():
         Config.debugLevel = logging.INFO
     if options.dd:
         Config.debugLevel = logging.DEBUG
-    
+
     #LOG.critical("critical")
     #LOG.error("error")  # quiet
     #LOG.warning("warning") # normal
     #LOG.info("info") # detailed
     #LOG.debug("debug") # debug 
-        
+
 def getServerEncryption():
     ms_sql = tds.MSSQL(Config.serverAddr, Config.serverPort)
     ms_sql.connect()
@@ -596,9 +596,9 @@ def main():
         formatter = logging.Formatter('%(asctime)s %(message)s')
         handler.setFormatter(CustomFormatter(formatter._fmt))
         LOG.addHandler(handler)
-    
+
     show_banner()
-    
+
     if Config.serverAddr == LOCAL_SERVER:
         Config.loop =False
     else:

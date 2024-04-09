@@ -468,6 +468,17 @@ class Config:
     serverRequiresEncryption = False
     findQuery = None
     findQueryRe = None
+    logFile = None
+
+class CustomFormatter(logging.Formatter):
+    def format(self, record):
+        res = super(CustomFormatter, self).format(record)
+        # remove colors
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        res = ansi_escape.sub('', res)
+        # remove windows encoding in passwords
+        res = ''.join(c for c in res if c.isprintable())
+        return res
 
 def show_banner():
     if Config.debugLevel >= logging.ERROR:
@@ -504,6 +515,7 @@ def getArgs():
     parser.add_argument('target', action='store', help='MSSQL server name or address (use "null" for MSSQL server emulation - connection will be dropped after obtaining credentials)')
     parser.add_argument('-port', action='store', default='1433', help='MSSQL server port (default 1433)')
     parser.add_argument('-lport', action='store', default='1433', help='local listening port (default 1433)')
+    parser.add_argument('--log', action='store', default=None, help='log file', metavar="my.log")
 
     group = parser.add_argument_group("Searches in raw packet for a string/regexp (does NOT: parse TDS packet or search only in query, if fragmented shows only the chunk containing string/regexp), can be used multiple times in command line")
     group.add_argument('-f', metavar = "string_to_find", action='append', help='case insensitive')
@@ -542,6 +554,7 @@ def getArgs():
     Config.clientLoopPort=int(options.lcp) 
     Config.findQuery=options.f
     Config.findQueryRe=options.r
+    Config.logFile=options.log
 
     if options.key and options.cert:
         Config.certFromFile = True
@@ -577,6 +590,12 @@ def main():
     logger.init()
     logging.getLogger().setLevel(Config.debugLevel)
     logging.debug(version.getInstallationPath())
+
+    if Config.logFile:
+        handler = logging.FileHandler(Config.logFile, "a")
+        formatter = logging.Formatter('%(asctime)s %(message)s')
+        handler.setFormatter(CustomFormatter(formatter._fmt))
+        LOG.addHandler(handler)
     
     show_banner()
     

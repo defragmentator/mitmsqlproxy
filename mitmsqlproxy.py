@@ -36,6 +36,7 @@ import sys
 import logging
 import argparse
 import re
+import socket
 from random import SystemRandom, randint
 
 from twisted.internet import protocol, reactor
@@ -575,15 +576,19 @@ def getArgs():
     #LOG.debug("debug") # debug 
 
 def getServerEncryption():
-    ms_sql = tds.MSSQL(Config.serverAddr, Config.serverPort)
-    ms_sql.connect()
-    resp=ms_sql.preLogin()
-    if resp['Encryption'] == tds.TDS_ENCRYPT_REQ:
-        LOG.info("Server requires encryption!")
-        Config.serverRequiresEncryption=True
-    else:
-        LOG.info("Server DOES NOT require encryption!")
-    ms_sql.disconnect()
+    try:
+        ms_sql = tds.MSSQL(Config.serverAddr, Config.serverPort)
+        ms_sql.connect()
+        resp=ms_sql.preLogin()
+        if resp['Encryption'] == tds.TDS_ENCRYPT_REQ:
+            LOG.info("Server requires encryption!")
+            Config.serverRequiresEncryption=True
+        else:
+            LOG.info("Server DOES NOT require encryption!")
+        ms_sql.disconnect()
+    except socket.error as msg:
+        LOG.error("Test connection to the SQL server error: %s",msg)
+        sys.exit(1)
 
 def main():
     getArgs()

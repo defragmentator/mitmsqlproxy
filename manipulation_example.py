@@ -8,7 +8,7 @@
 # inspired by: 
 #   https://gist.github.com/thinkst/db909e3a41c5cb07d43f
 #
-# use with: ./mssql-proxy_ssl.py3 192.168.123.2 -d -lcp 1444
+# use with: ./mitmsqlproxy.py 192.168.123.2 -d -lcp 2434
 
 from twisted.internet import protocol, reactor
 
@@ -21,7 +21,7 @@ class ExampleServerProtocol(protocol.Protocol):
         factory = protocol.ClientFactory()
         factory.protocol = ExampleClientProtocol
         factory.server = self
-        reactor.connectTCP("127.0.0.1", 1434, factory)
+        reactor.connectTCP("127.0.0.1", 2433, factory)
         print("new connection")
  
     def dataReceived(self, data):
@@ -55,7 +55,7 @@ class ExampleClientProtocol(protocol.Protocol):
 def main():
     factory = protocol.ServerFactory()
     factory.protocol = ExampleServerProtocol
-    reactor.listenTCP(1444, factory)
+    reactor.listenTCP(2434, factory)
     reactor.run()
 
 if __name__ == '__main__':

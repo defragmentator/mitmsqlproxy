@@ -22,9 +22,9 @@ Easy dumping interesting parts of the TDS packet (query\*) containing certain st
 
 
 ## Easy sniffing
-To allow easy sniffing decrypted traffic by default is passing by loop on 127.0.0.1:1434
+To allow easy sniffing decrypted traffic by default is passing by loop on 127.0.0.1:2433
 ```
-tcpdump -i lo port 1434 -X
+tcpdump -i lo port 2433 -X
 ```
 ## Easy queries manipulation
 Traffic can be also easy redirected to some other middle application to manipulate queries. It needs to listen on some port, manipulate the data and send it back to some other port. All processed data is already decrypted.
@@ -43,7 +43,7 @@ As example *manipulation_example.py* show how to change all SELECT queries to UP
 ```
 
 ```
-./mitmsqlproxy.py 192.168.123.2 -q -lcp 1444 &
+./mitmsqlproxy.py 192.168.123.2 -q -lcp 2434 &
 
 ./manipulation_example.py
 ```
@@ -67,41 +67,38 @@ iptables -t nat -A PREROUTING -p tcp --dport 1433 -j DNAT --to-destination 127.0
 
 ## Command line options
 ```
-usage: mitmsqlproxy.py [-h] [-port PORT] [-lport LPORT] [-f string_to_find] [-q | -d | -dd]
-                        [-ll ip_address] [-llp port] [-lc ip_address]
-                        [-lcp port] [--disable-loop] [--cert my.crt] [--key my.key] target
+usage: mitmsqlproxy.py [-h] [-port PORT] [-lport LPORT] [--log my.log] [-f string_to_find] [-r regexp_to_find]
+     [-q | -d | -dd] [-ll ip_address] [-llp port] [-lc ip_address] [-lcp port] [--disable-loop] [--cert my.crt]
+     [--key my.key] target
 
 MSSQL MITM proxy (SSL supported).
 
 positional arguments:
-  target             MSSQL server name or address (use "null" for MSSQL server emulation - 
-                      connection will be dropped after obtaining credentials)
-
+  target             MSSQL server name or address (use "null" for MSSQL server emulation - connection will
+                        be dropped after obtaining credentials)
 options:
   -h, --help         show this help message and exit
   -port PORT         MSSQL server port (default 1433)
   -lport LPORT       local listening port (default 1433)
+  --log my.log       log file
   -q                 quiet mode
   -d                 show more info
   -dd                show debug info
 
- Searches in raw packet for a string/regexp (does NOT: parse TDS packet or search only in query,
-  if fragmented shows only the chunk containing string/regexp), can be used multiple times in
-  command line:
+Searches in raw packet for a string/regexp (does NOT: parse TDS packet or search only in query, if fragmented
+shows only the chunk containing string/regexp), can be used multiple times in command line:
   -f string_to_find  case insensitive
   -r regexp_to_find  e.g. -r '(?i)SELECT.*MyTable[\x00-\x7F]*'
 
-Internal connection loop - decrypted data is sent to certain port (default 127.0.0.1:1434) and
-coming back to mitmslqproxy to be encrypted and send further. This option allows to sniff or
-even modify unencrypted SQL traffic in the fly with third party application:
-
+Internal connection loop - decrypted data is sent to certain port (default 127.0.0.1:2433) and coming back to
+mitmslqproxy to be encrypted and send further. This option allows to sniff or even modify unencrypted SQL
+traffic in the fly with third party application:
   -ll ip_address     loop listening address (default 127.0.0.1)
-  -llp port          loop listening address port (default 1434)
+  -llp port          loop listening address port (default 2433)
   -lc ip_address     loop connecting address (default 127.0.0.1)
-  -lcp port          loop connecting address port (default 1434)
-  --disable-loop     disable internal loop - if both sides will negotiate encryption sniffing
-                        will be useless, only credentials will be shown on console (raw data
-                        only in debug mode)
+  -lcp port          loop connecting address port (default 2433)
+  --disable-loop     disable internal loop - if both sides will negotiate encryption sniffing will be useless,
+                    only credentials will be shown on console (raw data only in debug mode)
 
 TLS custom private key and certificate (by default it is dynamically generated):
   --cert my.crt      certificate file

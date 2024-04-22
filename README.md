@@ -142,6 +142,14 @@ TLS custom private key and certificate (by default it is dynamically generated):
 
 * Echo Mirage - very old and did not work - should inject to a process and get data before/after encryption.
 
+# Windows binary
+Windows .exe binary can be compiled with follwong commands:
+```
+pip3 install pyinstaller
+pyinstaller mitmsqlproxy.py --onefile
+```
+BINARY IS NOT PUBLISHED IN REPO TO AVOID DEFENDER, PLEASE DO NOT PUBLISH A BINARY!
+
 # To do
 * NTLM support
 * full TDS packet parsing during search for strings and regular expressions in queries, defragmentation of queries

@@ -32,6 +32,9 @@ CROSSED = "\x1b[9m"
 NOT_CROSSED = "\x1b[29m"
 LOCAL_SERVER = "null"
 
+from colorama import just_fix_windows_console
+just_fix_windows_console()
+
 import sys
 import logging
 import argparse

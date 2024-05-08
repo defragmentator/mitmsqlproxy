@@ -122,6 +122,8 @@ TLS custom private key and certificate (by default it is dynamically generated):
     c.put data
   end
 ```
+* Responder - supports protocol downgrade and NTLM, but no encryption https://github.com/lgandx/Responder
+
 * tds-downgrade.py - this tool was presented as POC here: http://blog.blindspotsecurity.com/2017/12/advanced-sql-server-mitm-attacks.html and DOES SUPPORT TLS. It has two modes: ***downgrade*** and ***cert***, the only function it supports is logging decrypted traffic to files. For me it worked only in ***downgrade*** mode, but it was very unstable. It can be downloaded here: https://github.com/ecbftw/poc/blob/master/mssql-mitm/tds-downgrade.py
 
 * https://github.com/tech-software/TDSProxy - written in C#, it uses similar mechanisms, but the intention is to filter certain users by proxy behind MS SQL server. It uses custom user DLL plugins with filters. For me it wasn't working as expected, especially when server side was forcing TLS (client side TLS communication was established). 

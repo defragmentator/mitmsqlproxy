@@ -22,6 +22,7 @@ title: MITM SQL proxy (TLS supported)
 email: your-email@example.com
 description: >- # this means to ignore newlines until "baseurl:"
 Tool for MS SQL Man In The Middle attack which supports TLS encryption.
+
 domain: defragmentator.github.io
 baseurl: "/mitmsqlproxy" # the subpath of your site, e.g. /blog
 url: "https://defragmentator.github.io/" # the base hostname & protocol for your site, e.g. http://example.com

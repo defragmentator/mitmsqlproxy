@@ -22,12 +22,15 @@ Easy dumping interesting parts of the TDS packet (query\*) containing certain st
 
 ## Dumping NTLMv2 hashes
 
-It can be used as ***Responder*** or ***metasploit auxiliary/server/capture/mssql*** to dump NTLMv2 (A.K.A. Net-NTLMv2) hashes, but unlike them it works with TLS encryption enabled on any side. What's more, it doesn't drop the connection after dump as mentioned tools - it acts as proxy and client will not see any difference.
+It can be used as *Responder* or *metasploit auxiliary/server/capture/mssql* to dump NTLMv2 (A.K.A. Net-NTLMv2) hashes, but unlike them it works with TLS encryption enabled on any side. What's more, it doesn't drop the connection after dump as mentioned tools - it acts as proxy and client will not see any difference.
 
 Even if for some reason server policy will not accept the right NTLM credentials we will still get the hash as below:
 
  <img src="https://github.com/defragmentator/mitmsqlproxy/blob/master/ntlm_screen.png?raw=true" alt="ntlm screen " width="50%">
  
+ *(in this example connection is refused because connection is redirected back to itself)*
+ 
+
 ```
 [!] NetNTLMv2: test::DOMAIN:ea4f0a44074b93c3:EB748036D9FA44EA74808B0AD3CE5353:01010000000000002606AF2401A2DA014653516E31634B57000000000200040058004C0001000C0058004C0032003000320033000400100078006C002E006C006F00630061006C0003001E0058004C0032003000320033002E0078006C002E006C006F00630061006C000500100078006C002E006C006F00630061006C00070008002606AF2401A2DA010900160063006900660073002F0058004C0032003000320033000000000000000000
 ```

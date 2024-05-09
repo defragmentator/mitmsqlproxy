@@ -1,5 +1,3 @@
-<meta name="google-site-verification" content="DWy5cv0lARVGpyqWwbnrUSiLDTzPKGd0CzhrVjjvPck" />
-
 # MITM SQL proxy (TLS supported)
 
 Tool for MS SQL Man In The Middle attack which supports TLS encryption. 

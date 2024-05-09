@@ -20,6 +20,22 @@ Easy dumping interesting parts of the TDS packet (query\*) containing certain st
 ```
 *Note: it does NOT parse TDS packet or search only in query string part of the packet. If it is fragmented shows only the chunk containing string/regexp.
 
+## Dumping NTLMv2 hashes
+
+It can be used as ***Responder*** or ***metasploit auxiliary/server/capture/mssql*** to dump NTLMv2 (A.K.A. Net-NTLMv2) hashes, but unlike them it works with TLS encryption enabled on any side. What's more, it doesn't drop the connection after dump as mentioned tools - it acts as proxy and client will not see any difference.
+
+Even if for some reason server policy will not accept the right NTLM credentials we will still get the hash as below:
+
+ <img src="https://github.com/defragmentator/mitmsqlproxy/blob/master/ntlm_screen.png?raw=true" alt="ntlm screen " width="50%">
+ 
+```
+[!] NetNTLMv2: test::DOMAIN:ea4f0a44074b93c3:EB748036D9FA44EA74808B0AD3CE5353:01010000000000002606AF2401A2DA014653516E31634B57000000000200040058004C0001000C0058004C0032003000320033000400100078006C002E006C006F00630061006C0003001E0058004C0032003000320033002E0078006C002E006C006F00630061006C000500100078006C002E006C006F00630061006C00070008002606AF2401A2DA010900160063006900660073002F0058004C0032003000320033000000000000000000
+```
+Hash can be cracked with following tools:
+```
+john --format=netntlmv2 hash.txt
+hashcat -m 5600 -a 3 hash.txt
+```
 
 ## Easy sniffing
 To allow easy sniffing decrypted traffic by default is passing by loop on 127.0.0.1:2433
@@ -153,6 +169,5 @@ pyinstaller mitmsqlproxy.py --onefile
 BINARY IS NOT PUBLISHED IN REPO TO AVOID DEFENDER, PLEASE DO NOT PUBLISH A BINARY!
 
 # To do
-* NTLM support
 * full TDS packet parsing during search for strings and regular expressions in queries, defragmentation of queries
 * overwriting ServerName field in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)

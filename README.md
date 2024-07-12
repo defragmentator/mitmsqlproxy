@@ -172,5 +172,6 @@ pyinstaller mitmsqlproxy.py --onefile
 BINARY IS NOT PUBLISHED IN REPO TO AVOID DEFENDER, PLEASE DO NOT PUBLISH A BINARY!
 
 # To do
+* errors with SQL Server Management Studio 19 (for older versions it works fine)
 * full TDS packet parsing during search for strings and regular expressions in queries, defragmentation of queries
 * overwriting ServerName field in TDS_LOGIN7 packet (server does not check this, but this way MITM attack can be now identified)
